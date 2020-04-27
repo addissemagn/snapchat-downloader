@@ -35,9 +35,9 @@ app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = 'the random string'
 
-# @app.route("/")
-# def index():
-#     return render_template("/static/index.html")
+@app.route("/")
+def index():
+    return render_template("testing.html")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -67,7 +67,7 @@ def upload_file():
             # os.remove(memories_path)
 
             return redirect(request.url)
-    return render_template('index.html')
+    return render_template('testing.html')
 
 if __name__ == '__main__':
     app.run(debug=False, port=5000)

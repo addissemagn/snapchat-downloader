@@ -8,23 +8,32 @@ body {
   background: linear-gradient(to right, #FFE884, #F39F86);
   color: #403F3B;
   font-family: 'Lato', sans-serif;
-  /* top: 50%;
-  left: 50%;
-  height: 100%; */
+}
+
+.container {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 0px;
+  border-radius: 15px;
+  height: 215px;
+  width: 450px;
+  padding: 20px;
 }
 
 h2 {
-  margin: 50px 0;
+  margin: 110px 0 0px 0;
+  text-align: center
+}
+
+h3 {
+  margin: 20px 0 40px 0;
+  font-size: 15px;
+  text-align: center;
+  /* font-weight: bold; */
 }
 
 section {
   flex-grow: 1;
 }
-
-/* form {
-  position: relative;
-} */
-
 
 .file-drop-area {
   position: relative;
@@ -34,11 +43,21 @@ section {
   max-width: 100%;
   padding: 25px;
   border: 1px dashed rgba(255, 255, 255, 0.6);
+  background-color: rgba(255, 255, 255, 0.06);
   border-radius: 5px;
   transition: 0.2s;
   &.is-active {
     background-color: rgba(255, 255, 255, 0.2);
   }
+}
+
+.info {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 450px;
+  max-width: 100%;
+  padding: 35px 0;
 }
 
 .fake-btn {
@@ -56,20 +75,6 @@ section {
     background-color: rgba(255, 255, 255, 0.5);
 }
 
-
-.outer {
-  position: relative;
-  padding: 10px;
-  /* text-align: center;
-   /* */
-   /* display: flex;
-   align-items: center; */ */
-}
-
-/* .outer img {
-  text-align: center;
-} */
-
 .btn {
   /* flex-shrink: 0; */
   position: absolute;
@@ -77,7 +82,7 @@ section {
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 3px;
   padding: 8px 15px;
-  margin-top: 70px;
+  margin-top: 80px;
   margin-left: auto;
   margin-right: auto;
   font-size: 12px;
@@ -89,7 +94,7 @@ section {
   /* flex-shrink: 0; */
   position: absolute;
 
-  background-color: rgba(255, 255, 255, 0.0);
+  background-color: rgba(255, 255, 255, 0.06);
   border: 1px dashed rgba(255, 255, 255, 0.6);
   border-radius: 5px;
   padding: 8px 25px;
@@ -98,6 +103,7 @@ section {
   font-size: 12px;
   /* text-transform: uppercase; */
   width: 450px;
+  max-width: 100%;
   /* padding-left: 10px; */
 }
 
@@ -145,4 +151,8 @@ footer {
 
 .center {
   text-align: center;
+}
+
+.icons a {
+  text-decoration: none;
 }
