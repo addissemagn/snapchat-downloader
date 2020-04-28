@@ -34,7 +34,7 @@ def send_email(receiver_email, filename):
     # Add header as key/value pair to atachment part
     part.add_header(
         "Content-Disposition",
-        "attachment; filename={}".format(filename),
+        "attachment; filename={}".format("snapchat_memories.zip"),
     )
 
     # Add attachment to message and convert to string
@@ -43,6 +43,10 @@ def send_email(receiver_email, filename):
 
     # Login to server using secure context and send email
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(sender_email, password)
-        server.sendmail(sender_email, receiver_email, text)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            server.login(sender_email, password)
+            server.sendmail(sender_email, receiver_email, text)
+        print("Email sent successfully")
+    except Exception as e:
+        print("Exception occured sending email")

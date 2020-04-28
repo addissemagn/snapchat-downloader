@@ -2,7 +2,7 @@
 from flask import Flask, request, redirect, jsonify, flash, render_template
 import os
 from werkzeug.utils import secure_filename
-from download_manager import snapchat_downloader
+from download_handler import snapchat_downloader
 
 UPLOAD_FOLDER = 'uploads/'
 ALLOWED_EXTENSIONS = set(['json'])
@@ -13,13 +13,13 @@ app.config['SECRET_KEY'] = 'the random string'
 
 @app.route("/")
 def index():
-    return render_template("testing.html")
+    return render_template("index.html")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# BUG: error if /#first, etc
 @app.route('/', methods=['GET', 'POST'])
+@app.route('/#first', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
         # check if the post request has the file part
@@ -49,7 +49,7 @@ def upload_file():
 
             return redirect(request.url)
 
-    return render_template('testing.html')
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=False, port=5000)
