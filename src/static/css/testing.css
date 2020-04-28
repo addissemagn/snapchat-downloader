@@ -2737,11 +2737,14 @@ table tfoot {
 }
 
 #header {
-  padding: 1em 5em 0
+  padding: 1em 5em 0;
+  /* font-weight: bold; */
+  color: #111;
 }
 
 #header h1 {
-  margin: 0 0 .25em
+  margin: 0 0 .25em;
+
 }
 
 #header p {
@@ -2750,7 +2753,7 @@ table tfoot {
 }
 
 #header.alt h1 {
-  font-size: 3.25em
+  font-size: 3.25em;
 }
 
 #header.alt>* {
