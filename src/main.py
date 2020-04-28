@@ -1,27 +1,3 @@
-# from flask import Flask, render_template
-#
-# app = Flask(__name__)
-#
-# @app.route("/")
-# def home():
-#     return render_template("home.html")
-#
-# @app.route("/about")
-# def about():
-#     return render_template("about.html")
-#
-# app.config["UPLOAD_FOLDER"] = "uploads"
-#
-# @app.route("/sendfile", methods=["POST"])
-# def send_file():
-#     fileob = request.files["file2upload"]
-#     filename = secure_filename(fileob.filename)
-#     save_path = "{}/{}".format(app.config["UPLOAD_FOLDER"], filename)
-#     fileob.save(save_path)
-#     return "successful_upload"
-#
-# if __name__=="__main__":
-#     app.run(debug=True)
 
 from flask import Flask, request, redirect, jsonify, flash, render_template
 import os
@@ -42,6 +18,7 @@ def index():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# BUG: error if /#first, etc
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -64,20 +41,15 @@ def upload_file():
 
             snapchat_downloader(memories_path, receiver_email)
 
-            # os.remove(memories_path)
+            # TODO: add folder for uploads by email
+            try:
+                os.remove(UPLOAD_FOLDER + filename)
+            except:
+                print("Error finding/deleting {}".format(UPLOAD_FOLDER + filename))
 
             return redirect(request.url)
+
     return render_template('testing.html')
 
 if __name__ == '__main__':
     app.run(debug=False, port=5000)
-
-
-# <!doctype html>
-# <title>Upload new File</title>
-# <h1>Upload new File</h1>
-# <form method=post enctype=multipart/form-data>
-#   <input type=file name=file>
-#   <input type=submit value=Upload>
-# </form>
-# '''
