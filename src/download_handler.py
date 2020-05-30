@@ -6,37 +6,30 @@ from pathlib import Path
 import zipfile
 import os
 import sys
+import time
 from email_handler import send_email
 import shutil
 import argparse
+import config
 
-import config # mport config file
-
-# <-FIXME->
-# FIXME: how does this work with multiple simultaneous requests?
-# FIXME: security, i.e. plaintext password in email manager
-
-# <-BUG->
-# BUG: mp4 download doesn't work
-# BUG: submitting with /#first, etc fails
-
-# Path to uploaded json files
-UPLOADS_PATH = config.UPLOADS_PATH 
 
 all_media = dict(
-            all_media = {},
-            stats = {}
-        )
+    all_media = {},
+    stats = {}
+)
+
 
 def main():
     args = arguments()
+    snapchat_downloader(args.memories_path, args.email, web=False)
 
+def snapchat_downloader(memories_path, email, web):
     # Create unique directories indexed by email for downloads and zip files
-    FILE_PATH = config.FILE_PATH + args.email + "/"
-    ZIP_PATH = config.ZIP_PATH + args.email + "/"
+    FILE_PATH = config.FILE_PATH + memories_path + "/"
+    ZIP_PATH = config.ZIP_PATH + memories_path + "/"
 
     # Process the memories json file
-    process_json(args.memories_path, FILE_PATH)
+    process_json(memories_path, FILE_PATH)
 
     # Download all the files
     download_files()
@@ -44,9 +37,10 @@ def main():
     # Create zip directory of images
     zip_handler(FILE_PATH, ZIP_PATH)
 
-    if args.email != config.default_email:
+    # Only send email if email provided too
+    if web == True:
         # Send the email with the downloads
-        send_email(args.email, ZIP_PATH + "snapchat_memories.zip")
+        send_email(email, ZIP_PATH + "snapchat_memories.zip")
 
         # Delete all data from this session
         reset(FILE_PATH, ZIP_PATH)
@@ -56,11 +50,13 @@ def process_json(memories_path, FILE_PATH):
     with open(memories_path) as fd:
         data = json.load(fd)
         saved_media = data["Saved Media"]
+        
+        print("Total memories: {}".format(len(saved_media)))
 
-
+        count = 0
         for memory in saved_media:
             url = memory["Download Link"]
-
+            count += 1
             if url not in all_media["all_media"]:
                 tstamp = memory["Date"]
                 year, month, day = tstamp[0:4], tstamp[5:7], tstamp[8:10]
@@ -71,7 +67,7 @@ def process_json(memories_path, FILE_PATH):
                 media_path = FILE_PATH + year + "/" + month + "/"
                 Path(media_path).mkdir(parents=True, exist_ok=True)
 
-                media = dict(
+                all_media["all_media"][url] = dict(
                     url = url, 
                     path = media_path,
                     type = memory["Media Type"],
@@ -80,19 +76,26 @@ def process_json(memories_path, FILE_PATH):
                     status = Status.INIT
                 )
 
-                all_media["all_media"][url] = media
-        
-        # Total files in .json file
-        all_media["stats"]["total_file"] = len(saved_media)
-        # Total unique files; TODO: somehow total valid links?
-        all_media["stats"]["total_valid"] = len(all_media["all_media"])
+                
+                progress(count, len(saved_media), "Fetching links")
 
-        print("Total memories: {}".format(all_media["stats"]["total_file"]))
+        all_media["stats"]  = dict (
+            total_files = len(saved_media),             # Total entries in .json 
+            total_unique = len(all_media["all_media"])   # Total unique files
+        )
 
 
-# Download each url
+# Download each file
 def download_files():
+    count = 0
+    print(" ")
     for url in all_media["all_media"]:
+        count += 1
+
+        progress(count, all_media["stats"]["total_unique"], "Downloading")
+        # time.sleep(0.5)
+        # print("Downloading {}/{}".format(count, all_media["stats"]["total_unique"]), end = " ")
+
         media = all_media["all_media"][url]
         download_url(url = media["url"],
                      file_path = media["path"],
@@ -101,10 +104,13 @@ def download_files():
                      time = media["time"]
         )
 
+    print("\nDownload complete")
+
 
 # Download the media file
 def download_url(url, file_path, type, date, time):
     file_name = "Snapchat-{}__{}".format(date, time)
+
     if type == "PHOTO":
         file_name += ".jpg"
     elif type == "VIDEO":
@@ -125,15 +131,16 @@ def download_url(url, file_path, type, date, time):
         download_url = response.read().decode()
         response = urllib.request.urlopen(download_url)
         downloaded_contents = response.read()
-
         file_path = os.path.join(file_path + file_name)
 
         with open(file_path, 'wb') as f:
             f.write(downloaded_contents)
 
         all_media["all_media"][url]["status"] = Status.SUCCESS
+        print("- [SUCCESS] {}".format(file_name))
+
     except Exception as e:
-        print("[ERROR] - Download failed: {}".format(file_name))
+        # print("- [FAILURE] {}".format(file_name))
         all_media["all_media"][url]["status"] = Status.FAILURE
 
 
@@ -141,25 +148,20 @@ def download_url(url, file_path, type, date, time):
 def zip_handler(FILE_PATH, ZIP_PATH):
     # Make a directory for this user's zip
     Path(ZIP_PATH).mkdir(parents=True, exist_ok=True)
+
     # Create a zip file in the zips/ directory
     ziph = zipfile.ZipFile(ZIP_PATH + 'snapchat_memories.zip', 'w', zipfile.ZIP_DEFLATED)
 
-    path = FILE_PATH
-
     # Compress directory with downloaded files
     # Ziph is zipfile handle
-    for root, dirs, files in os.walk(path):
+    for root, dirs, files in os.walk(FILE_PATH):
         for file in files:
             ziph.write(os.path.join(root, file))
 
     ziph.close()
 
 
-def check_duplicates():
-    pass
-
-
-# TODO: delete in upload folder too
+# Delete all created directories
 def reset(FILE_PATH, ZIP_PATH):
     # Delete zip file
     try:
@@ -186,6 +188,17 @@ def arguments():
    return parser.parse_args()
 
 
+# Progress bar
+def progress(count, total, status=''):
+    bar_len = 30 # 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stdout.write('[%s] %s ...%s\r' % (bar, str(count) + "/" + str(total), status))
+    sys.stdout.flush()
+
+# Download status for each file
 class Status:
     INIT = 1
     SUCCESS = 2
