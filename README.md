@@ -17,20 +17,31 @@
 
 </p>
 
-# What's included?
+## What's SnapSaver?
+SnapSaver is simple mass downloader for all of your Snapchat memories. Download from the site or have them emailed to you once the download is complete.
 
-# Setting up
-You can use SnapSaver on the website or on your machine. To setup locally: 
+## Setting up locally 
 
 *****Clone the repo**
 ```
-git clone git@github.com:addissemagn/snapsaver.git
-cd snapsaver
+$ git clone git@github.com:addissemagn/snapsaver.git
+$ cd snapsaver
 ```
 
-**Initialize a virtualenv**
+**Initialize a virtual environment**
+Windows:
 ```
-pip install virtualenv
-virtualenv env
-source env/bin/activate
+$ python3 -m venv venv
+$ venv\Scrips\activate.bat
+```
+
+**Install the dependencies**
+```
+$ pip3 install -r requirements.txt
+```
+
+## Running the app
+```
+$ source env/bin/activate
+$ python3 src/main.py # add the inputs
 ```
