@@ -8,16 +8,7 @@ import os
 import sys
 from email_handler import send_email
 import shutil
-
-# <-TODO->
-# TODO: date range
-# TODO: status tracker - i.e. count of how many done / how many
-# TODO: post this on redit
-# TODO: add actual metadata to files
-# TODO: log of downloads in .txt file
-# TODO: error handling for if the file uploaded is not correct
-# TODO: add a page for status or something after user submits
-# TODO: write check_duplicates
+import argparse
 
 # <-FIXME->
 # FIXME: how does this work with multiple simultaneous requests?
@@ -30,13 +21,24 @@ import shutil
 # Path to uploaded json files
 UPLOADS_PATH = "uploads/"
 
+urls = {} # dict of urls of all photos
+
+def main():
+    args = arguments()
+    snapchat_downloader(args.memories_path, args.email)
+
+def arguments():
+   parser = argparse.ArgumentParser()
+   parser.add_argument("--memories_path", help="path to memories_history.json")
+   parser.add_argument("--email", help="email to send downloads to")
+   return parser.parse_args()
+
 def write_file_binary(file_path, file_contents):
     with open(file_path, 'wb') as f:
         f.write(file_contents)
 
 # Download the media file
 def download_url(url, file_path, type, date, time):
-    # Name the file
     file_name = "Snapchat-{}__{}".format(date, time)
     if type == "PHOTO":
         file_name += ".jpg"
@@ -52,14 +54,10 @@ def download_url(url, file_path, type, date, time):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36'
     }
 
-    # get_download_url = ''
-
     try:
         req = urllib.request.Request(post_url, data=post_data, headers=headers)
         response = urllib.request.urlopen(req)
         download_url = response.read().decode()
-        # old_file_name = os.path.basename(urlparse(download_url).path)
-        # new_file_name = name
         response = urllib.request.urlopen(download_url)
         downloaded_contents = response.read()
 
@@ -67,9 +65,9 @@ def download_url(url, file_path, type, date, time):
 
         with open(file_path, 'wb') as f:
             f.write(downloaded_contents)
-
     except Exception as e:
-        print(f'An exception occurred when attempting to download "{name}": {str(e)}')
+        print("Error downloading file: {}".format(file_name))
+        # print(e)
 
 def check_duplicates():
     pass
@@ -154,6 +152,7 @@ def snapchat_downloader(memories_path, receiver_email):
     ZIP_PATH = "zips/"
 
 if __name__=="__main__":
-    memories_path = input("Input path to memories: ")
-    receiver_email = input("Input receiver email: ")
-    snapchat_downloader(memories_path, receiver_email)
+    main()
+    #memories_path = input("Input path to memories: ")
+    #receiver_email = input("Input receiver email: ")
+    #snapchat_downloader(memories_path, receiver_email)
