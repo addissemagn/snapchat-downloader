@@ -1,17 +1,17 @@
+from email_handler import send_email
+import config
+
+import os
+import sys
+import time
 import urllib.request
 import urllib
 from urllib.parse import urlparse
 import json
 from pathlib import Path
 import zipfile
-import os
-import sys
-import time
-from email_handler import send_email
 import shutil
 import argparse
-import config
-
 
 all_media = dict(
     all_media = {},
@@ -20,32 +20,29 @@ all_media = dict(
 
 
 def main():
-    args = arguments()
-    snapchat_downloader(args.memories_path, args.email, web=False)
+    args = arguments() # Parse command line args
+    snapchat_downloader(args.memories_path, args.email)
 
-def snapchat_downloader(memories_path, email, web):
-    # Create unique directories indexed by email for downloads and zip files
-    FILE_PATH = config.FILE_PATH + memories_path + "/"
-    ZIP_PATH = config.ZIP_PATH + memories_path + "/"
 
-    # Process the memories json file
-    process_json(memories_path, FILE_PATH)
+# Process download request
+def snapchat_downloader(path, email, web = False):
+    # Create directories indexed by email for downloads and zip files
+    subdir = (email + "/") if email != "" else ""
+    FILE_PATH = config.FILE_PATH + subdir 
+    ZIP_PATH = config.ZIP_PATH + subdir 
 
-    # Download all the files
-    download_files()
+    process_json(path, FILE_PATH)       # Process memories json file
+    download_all()                      # Download all files
+    zip_handler(FILE_PATH, ZIP_PATH)    # Zip up directory of images
 
-    # Create zip directory of images
-    zip_handler(FILE_PATH, ZIP_PATH)
-
-    # Only send email if email provided too
+    # Only send email if email provided
     if web == True:
-        # Send the email with the downloads
-        send_email(email, ZIP_PATH + "snapchat_memories.zip")
-
-        # Delete all data from this session
-        reset(FILE_PATH, ZIP_PATH)
+        send_email(email, ZIP_PATH + "snapchat_memories.zip")   # Email zip of downloads
+    
+    reset(FILE_PATH, ZIP_PATH)                              # Delete data from session
 
 
+# Parse json; extract meta data from each file; skip duplicates 
 def process_json(memories_path, FILE_PATH):
     with open(memories_path) as fd:
         data = json.load(fd)
@@ -59,6 +56,7 @@ def process_json(memories_path, FILE_PATH):
             count += 1
             progress(count, len(saved_media), "Parsing Links")
 
+            # TODO: What is the actual key for each file, URL or Date?
             if url not in all_media["all_media"]:
                 tstamp = memory["Date"]
                 year, month, day = tstamp[0:4], tstamp[5:7], tstamp[8:10]
@@ -85,7 +83,7 @@ def process_json(memories_path, FILE_PATH):
 
 
 # Download each file
-def download_files():
+def download_all():
     count = 0
     print(" ")
     for url in all_media["all_media"]:
@@ -133,7 +131,7 @@ def download_url(url, file_path, type, date, time):
             f.write(downloaded_contents)
 
         all_media["all_media"][url]["status"] = Status.SUCCESS
-        print("- [SUCCESS] {}".format(file_name))
+        # print("- [SUCCESS] {}".format(file_name))
 
     except Exception as e:
         # print("- [FAILURE] {}".format(file_name))
@@ -149,11 +147,9 @@ def zip_handler(FILE_PATH, ZIP_PATH):
     ziph = zipfile.ZipFile(ZIP_PATH + 'snapchat_memories.zip', 'w', zipfile.ZIP_DEFLATED)
 
     # Compress directory with downloaded files
-    # Ziph is zipfile handle
     for root, dirs, files in os.walk(FILE_PATH):
         for file in files:
             ziph.write(os.path.join(root, file))
-
     ziph.close()
 
 
@@ -179,7 +175,7 @@ def arguments():
    parser = argparse.ArgumentParser()
    parser.add_argument("--memories_path", required=True, type=str,
                        help="Path to memories_history.json.")
-   parser.add_argument("--email", required=False, type=str, default=config.default_email,
+   parser.add_argument("--email", required=False, type=str, default="",
                        help="Email to send downloads to.")
    return parser.parse_args()
 
@@ -193,6 +189,7 @@ def progress(count, total, status=''):
 
     sys.stdout.write(' %s \t [%s] %s\r' % (status.upper(), bar, str(count) + "/" + str(total)))
     sys.stdout.flush()
+
 
 # Download status for each file
 class Status:
