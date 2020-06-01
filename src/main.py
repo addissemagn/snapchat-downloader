@@ -1,15 +1,14 @@
-
 from flask import Flask, request, redirect, jsonify, flash, render_template
 import os
 from werkzeug.utils import secure_filename
 from download_handler import snapchat_downloader
+import config
 
-UPLOAD_FOLDER = 'uploads/'
-ALLOWED_EXTENSIONS = set(['json']) # file extensions allowed for uploaded file
+ALLOWED_EXTENSIONS = set(['json'])  # file extensions allowed for uploaded file
 
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config['SECRET_KEY'] = 'the random string'
+app.config["UPLOAD_FOLDER"] = config.UPLOADS_PATH
+app.config['SECRET_KEY'] = config.SECRET_KEY 
 
 @app.route("/")
 def index():
@@ -36,16 +35,16 @@ def upload_file():
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
-            memories_path = UPLOAD_FOLDER + filename
+            memories_path = config.UPLOADS_PATH + filename
             receiver_email = request.form['text']
 
-            snapchat_downloader(memories_path, receiver_email)
+            snapchat_downloader(memories_path, receiver_email, web=True)
 
             # TODO: add folder for uploads by email
             try:
-                os.remove(UPLOAD_FOLDER + filename)
+                os.remove(config.UPLOADS_PATH + filename)
             except:
-                print("Error finding/deleting {}".format(UPLOAD_FOLDER + filename))
+                print("Error finding/deleting {}".format(config.UPLOADS_PATH + filename))
 
             return redirect(request.url)
 

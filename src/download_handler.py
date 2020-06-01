@@ -1,44 +1,109 @@
+from email_handler import send_email
+import config
+
+import os
+import sys
+import time
 import urllib.request
 import urllib
 from urllib.parse import urlparse
 import json
 from pathlib import Path
 import zipfile
-import os
-import sys
-from email_handler import send_email
 import shutil
+import argparse
 
-# <-TODO->
-# TODO: date range
-# TODO: status tracker - i.e. count of how many done / how many
-# TODO: post this on redit
-# TODO: add actual metadata to files
-# TODO: log of downloads in .txt file
-# TODO: error handling for if the file uploaded is not correct
-# TODO: add a page for status or something after user submits
-# TODO: write check_duplicates
+all_media = dict(
+    all_media = {},
+    stats = {}
+)
 
-# <-FIXME->
-# FIXME: how does this work with multiple simultaneous requests?
-# FIXME: security, i.e. plaintext password in email manager
 
-# <-BUG->
-# BUG: mp4 download doesn't work
-# BUG: submitting with /#first, etc fails
+def main():
+    args = arguments() # Parse command line args
+    snapchat_downloader(args.memories_path, args.email)
 
-# Path to uploaded json files
-UPLOADS_PATH = "uploads/"
 
-# 
-def write_file_binary(file_path, file_contents):
-    with open(file_path, 'wb') as f:
-        f.write(file_contents)
+# Process download request
+def snapchat_downloader(path, email, web = False):
+    # Create directories indexed by email for downloads and zip files
+    subdir = (email + "/") if email != "" else ""
+    FILE_PATH = config.FILE_PATH + subdir 
+    ZIP_PATH = config.ZIP_PATH + subdir 
+
+    process_json(path, FILE_PATH)       # Process memories json file
+    download_all()                      # Download all files
+    zip_handler(FILE_PATH, ZIP_PATH)    # Zip up directory of images
+
+    # Only send email if email provided
+    if web:
+        send_email(email, ZIP_PATH + "snapchat_memories.zip")   # Email zip of downloads
+    
+    reset(FILE_PATH, ZIP_PATH)                              # Delete data from session
+
+
+# Parse json; extract meta data from each file; skip duplicates 
+def process_json(memories_path, FILE_PATH):
+    with open(memories_path) as fd:
+        data = json.load(fd)
+        saved_media = data["Saved Media"]
+        
+        print("Total memories: {}".format(len(saved_media)))
+
+        count = 0
+        for memory in saved_media:
+            url = memory["Download Link"]
+            count += 1
+            progress(count, len(saved_media), "Parsing Links")
+
+            # TODO: What is the actual key for each file, URL or Date?
+            if url not in all_media["all_media"]:
+                tstamp = memory["Date"]
+                year, month, day = tstamp[0:4], tstamp[5:7], tstamp[8:10]
+                date = "{}-{}-{}".format(year, month, day)
+                time = "{}-{}-{}".format(tstamp[11:13], tstamp[14:16], tstamp[17:19])
+
+                # Create nested file directory in FILE_PATH/year/month
+                media_path = FILE_PATH + year + "/" + month + "/"
+                Path(media_path).mkdir(parents=True, exist_ok=True)
+
+                all_media["all_media"][url] = dict(
+                    url = url, 
+                    path = media_path,
+                    type = memory["Media Type"],
+                    date = date,
+                    time = time,
+                    status = Status.INIT
+                ) 
+
+        all_media["stats"]  = dict (
+            total_files = len(saved_media),             # Total entries in .json 
+            total_unique = len(all_media["all_media"])   # Total unique files
+        )
+
+
+# Download each file
+def download_all():
+    count = 0
+    print(" ")
+    for url in all_media["all_media"]:
+        count += 1
+        progress(count, all_media["stats"]["total_unique"], "Downloading")
+
+        media = all_media["all_media"][url]
+        download_url(url = media["url"],
+                     file_path = media["path"],
+                     type = media["type"],
+                     date = media["date"],
+                     time = media["time"]
+        )
+
+    print("\nDownload complete!")
 
 # Download the media file
 def download_url(url, file_path, type, date, time):
-    # Name the file according to its type
     file_name = "Snapchat-{}__{}".format(date, time)
+
     if type == "PHOTO":
         file_name += ".jpg"
     elif type == "VIDEO":
@@ -53,52 +118,41 @@ def download_url(url, file_path, type, date, time):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36'
     }
 
-    # get_download_url = ''
-
     try:
         req = urllib.request.Request(post_url, data=post_data, headers=headers)
         response = urllib.request.urlopen(req)
         download_url = response.read().decode()
         response = urllib.request.urlopen(download_url)
         downloaded_contents = response.read()
-
         file_path = os.path.join(file_path + file_name)
 
         with open(file_path, 'wb') as f:
             f.write(downloaded_contents)
+            
+        all_media["all_media"][url]["status"] = Status.SUCCESS
+        # print("- [SUCCESS] {}".format(file_name))
+
     except Exception as e:
-        print(f'An exception occurred when attempting to download "{name}": {str(e)}')
+        # print("- [FAILURE] {}".format(file_name))
+        all_media["all_media"][url]["status"] = Status.FAILURE
 
-# If file already exists do not download TODO: maybe check if already exists in dictionary
-def check_duplicates():
-    pass
 
-def process_json(memories_path, FILE_PATH):
-    with open(memories_path) as fd:
-        data = json.load(fd)
-        saved_media = data["Saved Media"]
+# Zip directory of images
+def zip_handler(FILE_PATH, ZIP_PATH):
+    # Make a directory for this user's zip
+    Path(ZIP_PATH).mkdir(parents=True, exist_ok=True)
 
-        count = 0
-        size = len(saved_media)
-        print(size)
+    # Create a zip file in the zips/ directory
+    ziph = zipfile.ZipFile(ZIP_PATH + 'snapchat_memories.zip', 'w', zipfile.ZIP_DEFLATED)
 
-        for memory in saved_media:
-            timestamp = memory["Date"]
-            year, month, day = timestamp[0:4], timestamp[5:7], timestamp[8:10]
-            date = "{}-{}-{}".format(year, month, day)
-            time = "{}-{}-{}".format(timestamp[11:13], timestamp[14:16], timestamp[17:19])
+    # Compress directory with downloaded files
+    for root, dirs, files in os.walk(FILE_PATH):
+        for file in files:
+            ziph.write(os.path.join(root, file))
+    ziph.close()
 
-            # Create nested file directory in FILE_PATH/year/month
-            media_path = FILE_PATH + year + "/" + month + "/"
-            Path(media_path).mkdir(parents=True, exist_ok=True)
 
-            # Increment file count for status
-            count += 1
-
-            # Download file
-            download_url(url = memory["Download Link"], file_path = media_path, type = memory["Media Type"], date = date, time = time)
-
-# TODO: delete in upload folder too
+# Delete all created directories
 def reset(FILE_PATH, ZIP_PATH):
     # Delete zip file
     try:
@@ -114,45 +168,34 @@ def reset(FILE_PATH, ZIP_PATH):
     except Exception as e:
         print(f'Exception when attempting to delete a directory: {str(e)}')
 
-# Zip directory of images
-def zip_handler(FILE_PATH, ZIP_PATH):
-    # Make a directory for this user's zip
-    Path(ZIP_PATH).mkdir(parents=True, exist_ok=True)
-    # Create a zip file in the zips/ directory
-    ziph = zipfile.ZipFile(ZIP_PATH + 'snapchat_memories.zip', 'w', zipfile.ZIP_DEFLATED)
 
-    path = FILE_PATH
+# Parse command line arguments
+def arguments():
+   parser = argparse.ArgumentParser()
+   parser.add_argument("--memories_path", required=True, type=str,
+                       help="Path to memories_history.json.")
+   parser.add_argument("--email", required=False, type=str, default="",
+                       help="Email to send downloads to.")
+   return parser.parse_args()
 
-    # Compress directory with downloaded files
-    # Ziph is zipfile handle
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            ziph.write(os.path.join(root, file))
 
-    ziph.close()
+# Progress bar
+def progress(count, total, status=''):
+    bar_len = 30 # 60
+    filled_len = int(round(bar_len * count / float(total)))
 
-def snapchat_downloader(memories_path, receiver_email):
-    # Path to extracted images, initialized in snapchat_downloader w/ user email
-    FILE_PATH = "downloads/"
-    # Path to all the zip files ready to send
-    ZIP_PATH = "zips/"
-    # Create unique directories indexed by email for downloads and zip files
-    FILE_PATH += "{}/".format(receiver_email)
-    ZIP_PATH += "{}/".format(receiver_email)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
 
-    # Process the memories json file
-    process_json(memories_path, FILE_PATH)
-    # Zip directory of images
-    zip_handler(FILE_PATH, ZIP_PATH)
-    # Send the email with the downloads
-    send_email(receiver_email, ZIP_PATH + "snapchat_memories.zip")
+    sys.stdout.write(' %s \t [%s] %s\r' % (status.upper(), bar, str(count) + "/" + str(total)))
+    sys.stdout.flush()
 
-    # Delete all data from this session and reset global vars
-    reset(FILE_PATH, ZIP_PATH)
-    FILE_PATH = "downloads/"
-    ZIP_PATH = "zips/"
+
+# Download status for each file
+class Status:
+    INIT = 1
+    SUCCESS = 2
+    FAILURE = 3
+
 
 if __name__=="__main__":
-    memories_path = input("Input path to memories: ")
-    receiver_email = input("Input receiver email: ")
-    snapchat_downloader(memories_path, receiver_email)
+    main()

@@ -3,15 +3,13 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import config
 
 # TODO: name the attachment
-# TODO: error handling
-# TODO: hide plaintext password
 def send_email(receiver_email, filename):
     subject = "Your memories are ready to download 👻"
     body = "Hey! Your memories are ready to download. Download and unzip the attached file."
-    sender_email = "downloadersnapchat@gmail.com"
-    password = "snappysnap"
+    sender_email = config.sender_email 
 
     # Create multipart message and set headers
     message = MIMEMultipart()
@@ -45,7 +43,7 @@ def send_email(receiver_email, filename):
     context = ssl.create_default_context()
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(sender_email, password)
+            server.login(sender_email, config.sender_password)
             server.sendmail(sender_email, receiver_email, text)
         print("Email sent successfully")
     except Exception as e:
