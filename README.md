@@ -54,7 +54,7 @@ $ pip3 install -r requirements.txt
 
 ## Running the app
 ```
-$ source env/bin/activate
+$ source venv/bin/activate
 $ python3 src/main.py --memories_path=<path_to_memories_history_from_Snapchat>
 # Ex: python3 src/main.py --memories_path=memories_history.json
 ```
